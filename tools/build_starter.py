@@ -10,10 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from prepare import PUBLIC, export, rgb565
 from portrait_assets import build_pet
+from care_assets import build as build_care
 from game_assets import build
 from device.pet_mood import TRAITS
 
-MODULES = ("panel","ambient","demo_care","main","pet_core","pet_labels","pet_link","pet_mood","pet_portrait","pocket_games","pocket_screen","wear_journal","bridge_sync","pocket_session")
+MODULES = ("pet_care","care_room","panel","ambient","demo_care","main","pet_core","pet_labels","pet_link","pet_mood","pet_portrait","pocket_games","pocket_screen","wear_journal","bridge_sync","pocket_session")
 BASE_DIGEST = "2b09a9ee8d1595af244f50699363377517960f38fd146d56d5de98a0cf58e68f"
 STARTERS = [
     ("cat", "团团", [72,83,88,65,25,40], "play"),
@@ -42,15 +43,17 @@ def assemble(work, firmware, site):
         index[key],preview = build_pet(sprite,screen,portraits,slot,False)
         if i == 0:
             preview.save(site/"starter.png")
-        members.append(dict(id=key,name=name,dir=slot+"/"))
+        members.append(dict(id=key,name=name,kind=kind,stage=0,age_days=0,dir=slot+"/"))
         profiles.append(dict(pet_id=key,personality=dict(zip(TRAITS,values)),wish={"action":wish}))
+    build_care(nest)
+    (nest/"care.json").write_text("{}")
     build(nest,{"pets":profiles})
     (nest/"roster.json").write_text(json.dumps({"starter":True,"pets":members}))
     (portraits/"index.json").write_text(json.dumps(index))
     files={p.relative_to(work).as_posix():p.read_bytes() for folder in (nest,portraits) for p in folder.rglob("*") if p.is_file()}
     files.update({s+".py":(ROOT/"device"/(s+".py")).read_bytes() for s in MODULES})
     files["nest/pocket.json"] = b'{"version":1}'
-    files["passport-public-v1"] = b"0.2.1"
+    files["passport-public-v1"] = b"0.3.0"
     # ESP32 flashbdev uses 4096-byte blocks. Pin the LittleFS v2.0 disk format.
     fs=littlefs.LittleFS(block_size=4096,block_count=1280,prog_size=32,read_size=32,disk_version=0x00020000)
     for name,data in sorted(files.items()):
@@ -67,7 +70,7 @@ def assemble(work, firmware, site):
     image=firmware.ljust(0x300000,b"\xff")+bytes(fs.context.buffer)
     assert len(image)==8*1024*1024
     (site/"passport.bin").write_bytes(image)
-    (site/"image.json").write_text(json.dumps({"version":"0.2.1","sha256":sha256(image).hexdigest(),"size":len(image)})+"\n")
+    (site/"image.json").write_text(json.dumps({"version":"0.3.0","sha256":sha256(image).hexdigest(),"size":len(image)})+"\n")
     print(len(files),"files verified; firmware sha256",sha256(image).hexdigest())
 
 

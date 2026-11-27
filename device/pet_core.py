@@ -29,7 +29,7 @@ def start_action(path, pet_id, action):
     return body
 
 
-def accept_receipt(path, body, reply):
+def accept_receipt(path, body, reply, before_remove=None):
     results = reply.get("results", [])
     if (not reply.get("receipt_id") or len(results) != 1
             or results[0].get("pet_id") != body["pet_ids"][0]
@@ -39,5 +39,6 @@ def accept_receipt(path, body, reply):
     status = result["status"]
     grains = int(reply["pantry"]["grains"])
     delta = int(result["growth_delta"])
+    if before_remove:before_remove(body,status)
     os.remove(path)
     return status, grains, delta

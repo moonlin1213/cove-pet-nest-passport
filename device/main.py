@@ -99,6 +99,38 @@ last_pose = time.ticks_ms()
 notice_since = last_pose
 
 
+care_room = None
+care_meta = pending(BASE+"care.json")
+if roster and care_meta is not None:
+    from care_room import Room
+    care_room = Room((session.book.path if session else "/pet-local")+"-affinity.json",pets,portraits,care_meta,time.ticks_ms())
+    if session:
+        def credit_receipt(row,receipt):
+            if receipt["status"] in ("fed","played","comforted"):
+                care_room.care.credit(row["pet"],row["op"],row["id"],(r["id"] for r in session.book.rows))
+        session.before_ack=credit_receipt
+    del care_meta
+    if care_room:
+        care_room.advance(time.ticks_ms())
+
+
+def care_footer_start():
+    return len(ACTIONS)+int(has_games)+int(bool(roster))+int(bool(screen_power))
+
+
+def standby_notice():
+    if not care_room or not care_room.shown:
+        return
+    kind,key = care_room.shown
+    member = next(m for m in pets if m["id"]==key)
+    path = BASE+member.get("dir","")+"pose0.rgb"
+    from panel import rows, present
+    with open(path,"rb") as f:
+        f.seek(197*480)
+        present(display,0,245,240,24,rows(f,24*480,memoryview(bytearray(3840))))
+    draw(kind+"_card",272,48)
+
+
 def draw(file, y, height, x=0, width=240):
     paint(display, BASE+file+".rgb", x, y, width, height)
 
@@ -109,6 +141,8 @@ def notice(key):
     notice_since = time.ticks_ms()
     if not standby:
         draw(notice_asset(key),240,32)
+    if care_room and key in ("visiting","bathed","cleaned","tidy"):
+        care_room.draw_bond(display,pet["id"])
 
 
 def notice_asset(key):
@@ -171,6 +205,9 @@ def redraw_menu(key, buttons):
 
 def show_standby():
     global standby, picking, round_now, selection, pose, last_pose, ambient_delay, index
+    global pet
+    if care_room:
+        pet = care_room.leave(pet)
     meta = portraits.get(pet["id"])
     if not meta:
         return
@@ -216,7 +253,7 @@ def open_menu():
 def tick_standby(now):
     global pose, ambient_delay, last_pose
     meta = portraits[pet["id"]]
-    if pet["id"] in trips or not meta["ready"] or time.ticks_diff(now,last_pose) < ambient_delay:
+    if (care_room and care_room.shown) or pet["id"] in trips or not meta["ready"] or time.ticks_diff(now,last_pose) < ambient_delay:
         return
     profile = profiles.get(pet["id"]) or {}
     allow_away = (not pose and not meta["egg"] and serial_wait is None
@@ -268,6 +305,10 @@ def start_round(ignore_food=False):
 
 
 def footer():
+    if care_room and selection>=care_footer_start():
+        return ("care_bath","care_clean")[selection-care_footer_start()]
+    if care_room and care_room.home and selection==len(ACTIONS)+int(has_games):
+        return "care_return"
     if screen_power and selection==len(ACTIONS)+int(has_games)+int(bool(roster)):
         return "sleep"+str(screen_power.seconds)
     if selection == -1:
@@ -286,7 +327,11 @@ def settle(body, reply):
         round_result = None
         notice("refused")
         return
-    status, grains, growth = accept_receipt(PENDING, body, reply)
+    def credit_legacy(record,status):
+        if care_room and status in ("fed","played","comforted"):
+            key=record["request_id"]
+            care_room.care.credit(record["pet_ids"][0],record["action"],key,[key])
+    status, grains, growth = accept_receipt(PENDING, body, reply, credit_legacy)
     if status in ("fed", "played", "comforted"):
         if not standby:
             picture(3 if status == "fed" else 5)
@@ -304,6 +349,20 @@ def command(key, long_press=False):
     if serial_wait is not None:
         return
     if standby:
+        if care_room and care_room.shown:
+            if key==2:
+                care_room.later()
+                show_standby()
+            elif key==3:
+                kind,_ = care_room.shown
+                pet = care_room.enter(pet)
+                index = pets.index(pet)
+                trips.pop(pet["id"],None)
+                open_menu()
+                selection = care_footer_start()+1 if kind=="dirty" else 2
+                draw(footer(),272,48)
+                notice("visiting")
+            return
         if key == 3:
             open_menu()
         return
@@ -353,6 +412,7 @@ def command(key, long_press=False):
             return
         first = -1 if pet["id"] in trips else 0
         count = len(ACTIONS) + int(bool(roster)) + int(has_games) + int(bool(screen_power))
+        if care_room:count += 2
         selection = first + (selection-first + (-1 if key == 1 else 1)) % (count-first)
         draw(footer(),272,48)
         return
@@ -362,6 +422,17 @@ def command(key, long_press=False):
         preferences.commit()
         screen_power.seconds=value
         draw(footer(),272,48)
+        return
+    if care_room and selection>=care_footer_start():
+        try:
+            result = care_room.act(("bath","clean")[selection-care_footer_start()],pet)
+            if result in ("bathed","cleaned"):picture(5)
+            notice(result)
+        except OSError:
+            notice("storage_full")
+        return
+    if care_room and care_room.home and footer()=="care_return":
+        show_standby()
         return
     if selection == -1:
         if pet["id"] in trips:
@@ -386,7 +457,10 @@ def command(key, long_press=False):
 def send_action(action, existing):
     global serial_wait, round_result
     if session and not existing:
-        try:session.book.care(action,round_result)
+        try:
+            event=session.book.care(action,round_result,target=pet["id"])
+            if care_room and action in ("play","comfort"):
+                care_room.care.credit(pet["id"],action,event,(r["id"] for r in session.book.rows))
         except OSError:
             notice("storage_full")
             return
@@ -502,6 +576,12 @@ while True:
         refresh_mind()
         if message == "idle":
             notice("idle")
+    if care_room and not (key or stable or candidate) and time.ticks_diff(now,last_input)>=1200:
+        try:
+            care_room.advance(now)
+            care_room.sync(now,bool(wlan and wlan.isconnected()),config,bool(session and session.starter))
+        except (OSError,ValueError,MemoryError):
+            pass
     if screen_power:
         was_dark=screen_power.dark
         consumed=screen_power.update(now,key,bool(round_now or serial_wait))
@@ -511,6 +591,12 @@ while True:
             if consumed:last_input=now
             time.sleep_ms(25)
             continue
+    if care_room and standby and not (candidate or stable or key) and True:
+        previous_alert = care_room.shown
+        care_room.refresh(pet["id"])
+        if care_room.shown!=previous_alert:
+            if care_room.shown:standby_notice()
+            else:show_standby()
     if key != candidate:
         candidate, changed = key, now
     elif key != stable and time.ticks_diff(now, changed) >= 55:

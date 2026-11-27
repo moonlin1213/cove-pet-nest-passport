@@ -7,6 +7,7 @@ from bridge_sync import BridgeSync
 
 class PocketSession:
     def __init__(self,pet,now,config,starter):
+        self.before_ack=None
         self.config=config
         self.starter=starter
         if starter:
@@ -41,6 +42,7 @@ class PocketSession:
                 row=self.net.entry
                 result=json.loads(data.decode())
                 if result.get('id')!=row['id']:raise ValueError('wrong receipt')
+                if self.before_ack:self.before_ack(row,result)
                 book.ack(row['id'])
                 return row,result
             except (OSError,ValueError,IndexError,KeyError,MemoryError):
@@ -58,6 +60,7 @@ class PocketSession:
         if self.starter:
             from demo_care import demo_record
             result=demo_record('/starter-care.json',row)
+            if self.before_ack:self.before_ack(row,result)
             book.ack(row['id'])
             return row,result
         self.last_try=now

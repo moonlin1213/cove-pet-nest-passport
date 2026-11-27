@@ -96,6 +96,13 @@ def serve(room, config):
             try:
                 if self.command=="GET" and self.path=="/clock":
                     self.respond(200,int(time.time()))
+                elif self.command=="POST" and self.path=="/care-log":
+                    from affinity_sync import record
+                    size=int(self.headers.get("Content-Length",0))
+                    if not 0<size<=512:raise ValueError()
+                    with sqlite3.connect(room.data/"pets.sqlite3") as db:
+                        reply=record(db,config["pets"],json.loads(self.rfile.read(size)))
+                    self.respond(200,reply)
                 elif self.command=="POST" and self.path=="/companion":
                     size=int(self.headers.get("Content-Length",0))
                     if not 0<size<=512:raise ValueError("invalid record size")
@@ -141,7 +148,10 @@ def personal_pack(dest,slot,chosen,room,wifi):
         meta["file"]=group+"/"+meta["file"]
         index[p["id"]]=meta
         profiles[p["id"]]=compact(pocket_profile(p))
-        roster.append(dict(id=p["id"],name=p["name"],growth=p.get("growth",0),dir=group+"/"+stem+"/"))
+        from affinity_sync import care_profile
+        with sqlite3.connect(room.data/"pets.sqlite3") as db:
+            metadata=care_profile(db,p,time.time())
+        roster.append(dict(id=p["id"],name=p["name"],growth=p.get("growth",0),dir=group+"/"+stem+"/",**metadata))
     for name,obj in (("roster",{"pets":roster}),("portrait",index),("moods",profiles),("wifi",wifi)):
         (nest/(name+".json")).write_text(json.dumps(obj))
     return [*sorted(portrait.glob("*.bin")),*sorted(nest.glob("p*/pose*.rgb")),*sorted(nest.glob("*.json"))]

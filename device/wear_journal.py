@@ -69,10 +69,11 @@ class Journal:
         self.pet=pet
         self.save()
 
-    def care(self,op,outcome=None):
+    def care(self,op,outcome=None,target=None):
         if self.pet is None:raise ValueError("choose a companion")
         self.open_row=None
         row=self.add(op)
+        if target is not None:row["pet"]=target
         if outcome:row["outcome"]=outcome
         try:self.save()
         except OSError:

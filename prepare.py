@@ -150,7 +150,10 @@ def prepare(base, name, dest, all_pets=False):
                     url = art_url(pet)
                     atlas = Image.open(io.BytesIO(fetch(url))) if url else None
                     export(pet, state["pantry"], room, atlas, build/slot, shared=build)
-                    roster.append(dict(id=pet["id"], name=pet["name"], dir=slot))
+                    roster.append(dict(id=pet["id"], name=pet["name"], dir=slot,
+                                       kind=pet["kind"], stage=pet["stage"],
+                                       **({"age_days":max(0,int((datetime.now().timestamp()-pet["created_at"])//86400))}
+                                          if isinstance(pet.get("created_at"),(int,float)) else {})))
             (build/"roster.json").write_text(json.dumps({"pets":roster},ensure_ascii=False))
             from game_assets import build as build_games
             build_games(build, json.loads(fetch("/api/pet-nest/ecosystem")))
