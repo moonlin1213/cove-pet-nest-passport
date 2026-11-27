@@ -1,6 +1,7 @@
 """Paint the full-screen room in strips; only redraw the pet's band on a pose change."""
 import deflate
 import framebuf
+from panel import paint, present
 
 WIDTH, HEIGHT = 240, 320
 SPRITE_W, SPRITE_H = 204, 210
@@ -22,22 +23,21 @@ def render(display, meta, pose, full):
         with deflate.DeflateIO(raw,deflate.ZLIB) as stream:
             # Keep stripe boundaries aligned exactly to the top/bottom of the pet.
             bands = [(0,TOP),(TOP,TOP+SPRITE_H),(TOP+SPRITE_H,HEIGHT)] if full else [(TOP,TOP+SPRITE_H)]
-            for start,end in bands:
-                for y in range(start,end,ROWS):
-                    h=min(ROWS,end-y)
-                    target=memoryview(stripe)[:WIDTH*h*2]
-                    if room.readinto(target)!=len(target):
-                        raise ValueError("short room")
-                    if start==TOP:
-                        source=memoryview(pixels)[:SPRITE_W*h]
-                        if stream.readinto(source)!=len(source):
-                            raise ValueError("short sprite")
-                        dest.blit(src,LEFT,0,0,palette)
-                    display.blit(target,0,y,WIDTH,h)
+            def parts():
+                for start,end in bands:
+                    for y in range(start,end,ROWS):
+                        h=min(ROWS,end-y)
+                        target=memoryview(stripe)[:WIDTH*h*2]
+                        if room.readinto(target)!=len(target):
+                            raise ValueError("short room")
+                        if start==TOP:
+                            source=memoryview(pixels)[:SPRITE_W*h]
+                            if stream.readinto(source)!=len(source):
+                                raise ValueError("short sprite")
+                            dest.blit(src,LEFT,0,0,palette)
+                        yield target
+            present(display,0,first,WIDTH,HEIGHT if full else SPRITE_H,parts())
 
 
 def empty_room(display, height):
-    with open("/portrait/room.rgb","rb") as room:
-        for y in range(0,height,8):
-            rows = min(8,height-y)
-            display.blit(room.read(WIDTH*rows*2),0,y,WIDTH,rows)
+    paint(display,"/portrait/room.rgb",0,0,WIDTH,height)

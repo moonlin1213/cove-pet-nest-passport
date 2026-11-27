@@ -12,6 +12,7 @@ from pet_link import post_care, get_profile, connect_wifi
 from pet_mood import expression
 from pocket_games import Round
 from pet_labels import MESSAGES
+from panel import menu, paint, restore
 
 BASE = "/nest/"
 PENDING = "/care-pending.json"
@@ -99,24 +100,24 @@ notice_since = last_pose
 
 
 def draw(file, y, height, x=0, width=240):
-    with open(BASE + file + ".rgb", "rb") as f:
-        for row in range(0, height, 8):
-            n = min(8, height-row)
-            display.blit(f.read(2*width*n), x, y+row, width, n)
+    paint(display, BASE+file+".rgb", x, y, width, height)
 
 
 def notice(key):
     global message, notice_since
     message = key
     notice_since = time.ticks_ms()
-    if standby:
-        return
+    if not standby:
+        draw(notice_asset(key),240,32)
+
+
+def notice_asset(key):
     if key == "idle" and not picking and pet["id"] in trips:
         key = "away_hint"
     if key == "idle" and not picking and pet["id"] in profiles:
         profile = profiles[pet["id"]]
         key = expression(profile["traits"],profile["wish"],last_response(),turns.get(pet["id"],0))
-    draw(key,240,32)
+    return key
 
 
 def growth_line(value):
@@ -141,12 +142,31 @@ def picture(number):
         draw(file,41,139,58,124)
     else:
         draw(file,0,240)
-        if session:
-            value=member.get("growth")
-            if session.starter:
-                state=pending("/starter-care.json") or {}
-                value=state.get("growth",{}).get(member["id"],0)
-            if value is not None:growth_line(value)
+        value = growth_value(member)
+        if value is not None:
+            growth_line(value)
+
+
+def growth_value(member):
+    if session:
+        if session.starter:
+            state = pending("/starter-care.json") or {}
+            return state.get("growth",{}).get(member["id"],0)
+        return member.get("growth")
+
+
+def redraw_menu(key, buttons):
+    global pose, last_pose, message, notice_since
+    if not picking and pet["id"] in trips:
+        picture(0)
+        draw(buttons,272,48)
+        notice(key)
+        return
+    member = pets[index] if picking else pet
+    menu(display, BASE, member.get("dir","")+"pose0", notice_asset(key), buttons, growth_value(member))
+    pose = 0
+    message = key
+    last_pose = notice_since = time.ticks_ms()
 
 
 def show_standby():
@@ -183,18 +203,14 @@ def expire_trip(now, redraw=True):
         if standby:
             show_standby()
         else:
-            picture(0)
-            draw(footer(),272,48)
-            notice("idle")
+            redraw_menu("idle",footer())
 
 
 def open_menu():
     global standby, selection
     standby = False
     selection = -1 if pet["id"] in trips else 0
-    picture(0)
-    draw(footer(),272,48)
-    notice("retry" if pending(PENDING) else "idle")
+    redraw_menu("retry" if pending(PENDING) else "idle",footer())
 
 
 def tick_standby(now):
@@ -362,9 +378,7 @@ def command(key, long_press=False):
         return
     if roster and selection == len(ACTIONS)+int(has_games) and not existing:
         picking = True
-        picture(0)
-        draw("picker",272,48)
-        notice("choose")
+        redraw_menu("choose","picker")
         return
     send_action(existing["action"] if existing else ACTIONS[selection], existing)
 
@@ -434,9 +448,7 @@ def serial_input():
 if pet["id"] in portraits and not (session and picking):
     show_standby()
 else:
-    picture(0)
-    draw("picker" if picking else "action0",272,48)
-    notice("retry" if pending(PENDING) else "choose" if picking else "idle")
+    redraw_menu("retry" if pending(PENDING) else "choose" if picking else "idle", "picker" if picking else "action0")
 print("NEST_READY")
 candidate = stable = 0
 pressed_at = time.ticks_ms()
@@ -444,6 +456,9 @@ changed = time.ticks_ms()
 while True:
     serial_input()
     now = time.ticks_ms()
+    mv = adc.read_uv() // 1000
+    key = 1 if mv < 150 else 2 if mv < 447 else 3 if mv < 1900 else 0
+    quiet = not (key or stable or candidate) and time.ticks_diff(now,last_input)>1200
     if session:
         try:
             settled=session.tick(now,bool(wlan and wlan.isconnected()))
@@ -476,19 +491,17 @@ while True:
             draw(round_now.card,272,48)
             if round_now.card in ("paw_now","quiet_now"):
                 picture(5)
-    if config and wlan and not wlan.isconnected() and time.ticks_diff(now,last_reconnect)>30000:
+    if quiet and config and wlan and not wlan.isconnected() and time.ticks_diff(now,last_reconnect)>30000:
         last_reconnect = now
         try:
             connect_wifi(wlan,config)
         except OSError:
             pass
-    if has_games and wlan and wlan.isconnected() and not picking and not round_now and not serial_wait and (
+    if quiet and has_games and wlan and wlan.isconnected() and not picking and not round_now and not serial_wait and (
         last_fetch is None or time.ticks_diff(now,last_fetch)>90000):
         refresh_mind()
         if message == "idle":
             notice("idle")
-    mv = adc.read_uv() // 1000
-    key = 1 if mv < 150 else 2 if mv < 447 else 3 if mv < 1900 else 0
     if screen_power:
         was_dark=screen_power.dark
         consumed=screen_power.update(now,key,bool(round_now or serial_wait))
@@ -517,7 +530,13 @@ while True:
         show_standby()
         continue
     if pose and time.ticks_diff(now,last_pose) > (260 if pose == 1 else 1600):
-        picture(0)
+        if roster and (picking or pet["id"] not in trips):
+            member = pets[index] if picking else pet
+            restore(display, BASE+member.get("dir","")+"pose0.rgb")
+            pose = 0
+            last_pose = time.ticks_ms()
+        else:
+            picture(0)
     elif not pose and (picking or pet["id"] not in trips) and time.ticks_diff(now,last_pose) > 5800:
         picture(1)
     if message not in ("idle","retry","sending","choose") and time.ticks_diff(now,notice_since) > 5500:
