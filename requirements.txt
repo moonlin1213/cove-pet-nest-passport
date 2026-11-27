@@ -1,0 +1,3 @@
+Pillow==13.0.0
+mpremote==1.29.0
+pyserial==3.5

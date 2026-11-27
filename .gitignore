@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+build/
+private/
+recovery/
+.env*
+*wifi*.json
+*.db*
+*.sqlite*
+*.backup
+.DS_Store

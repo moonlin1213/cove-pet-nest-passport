@@ -1,0 +1,17 @@
+{
+  "name": "cove-pet-nest-passport",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild web/installer.mjs --bundle --minify --format=esm --legal-comments=eof --outfile=docs/install/installer.js",
+    "test": "node --test web/flow.test.mjs"
+  },
+  "dependencies": {
+    "esptool-js": "0.5.7",
+    "spark-md5": "3.0.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

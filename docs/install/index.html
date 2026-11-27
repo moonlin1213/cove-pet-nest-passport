@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>安装 · Cove灵宠屋 · FoloToy 版</title><link rel="stylesheet" href="./style.css">
+<main><img src="./starter.png" width="240" height="320" alt="示例小猫团团在小窝里的待机画面">
+<section><h1>Cove灵宠屋 · FoloToy 版</h1>
+<p>用 USB <strong>数据线</strong>把 FoloToy AI Passport 接到电脑，点亮屏幕。请确认它是 ESP32-C3、8 MB 的 AI Passport。</p>
+<p>用桌面 Chrome 或 Edge 点「连接挂件」，在弹窗里选择 <b>USB JTAG/serial debug unit</b> 或 Espressif 设备。只插这一个挂件会更容易辨认。</p>
+<p>安装会替换挂件现有内容。页面先把整机备份保存到你的电脑，里面可能有原来的配网信息，请自己保管。安装时保留默认文件名。</p>
+<div class="actions"><button id="connect">连接挂件</button><button id="install" hidden>保存备份并安装</button><button id="restore" hidden>恢复原机备份</button><button id="disconnect" hidden>断开</button></div>
+<p id="status" role="status" aria-live="polite"></p><progress id="progress" max="1" hidden></progress>
+<details><summary>没有看到挂件或连接失败？</summary><p>先试一根能传文件的数据线，直接接电脑，关闭其他串口工具和占用挂件的网页。拔插后再点连接；端口列表里选好设备，再点弹窗里的连接按钮。</p></details>
+<p><a href="https://github.com/moonlin1213/cove-pet-nest-passport">按键说明与项目源码</a></p>
+</section></main><script type="module" src="./installer.js"></script></html>

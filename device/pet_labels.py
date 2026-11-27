@@ -1,0 +1,15 @@
+MESSAGES = {
+    "choose":"挑一只同行的小伙伴",
+    "idle":"随身小窝",
+    "offline":"离线小窝 · 联网后可照顾",
+    "sending":"正在照顾它…",
+    "retry":"等待确认 · 按 OK 重试",
+    "fed":"它吃好啦",
+    "played":"陪它玩了一会儿",
+    "comforted":"它安心地蹭了蹭你",
+    "full":"它现在已经吃饱了",
+    "no_food":"小窝的粮仓空了",
+    "arriving":"它还在来小窝的路上",
+    "refused":"这次照顾未完成",
+    "checked":"已收到小窝回执",
+}
