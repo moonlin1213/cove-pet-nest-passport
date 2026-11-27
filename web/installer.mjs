@@ -102,7 +102,7 @@ el('install').onclick=()=>action(async()=>{
   const handle=await window.showSaveFilePicker({suggestedName,types:[{description:'原机备份',accept:{'application/octet-stream':['.bin']}}]});
   if (handle.name !== suggestedName) throw Error('请保留备份的默认文件名，以便日后恢复。');
   progress('正在下载并核对公开安装包…');
-  const [r,m]=await Promise.all([fetch('./passport.bin?v=0.3.0'),fetch('./image.json',{cache:'no-cache'})]);
+  const [r,m]=await Promise.all([fetch('./passport.bin?v=0.3.1'),fetch('./image.json',{cache:'no-cache'})]);
   if (!r.ok || !m.ok) throw Error('安装包暂时无法下载。');
   await install({read:async()=>original,save:async b=>{
     const stream=await handle.createWritable(); await stream.write(b); await stream.close();
