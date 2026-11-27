@@ -1,12 +1,21 @@
 <!doctype html>
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>安装 · Cove灵宠屋 · FoloToy 版</title><link rel="stylesheet" href="./style.css">
 <main><img src="./starter.png" width="240" height="320" alt="示例小猫团团在小窝里的待机画面">
 <section><h1>Cove灵宠屋 · FoloToy 版</h1>
-<p>v0.2.0 支持随身成长、离线照顾和自动息屏。初次开机用 ▲ / ▼ 选伙伴，按 OK 确认。</p>
-<p>用 USB <strong>数据线</strong>把 FoloToy AI Passport 接到电脑，点亮屏幕。请确认它是 ESP32-C3、8 MB 的 AI Passport。</p>
-<p>用桌面 Chrome 或 Edge 点「连接挂件」，在弹窗里选择 <b>USB JTAG/serial debug unit</b> 或 Espressif 设备。只插这一个挂件会更容易辨认。</p>
+<h2>带上自己养的灵宠</h2>
+<p>启动这台电脑上的灵宠屋，插上挂件，在本机小屋里挑选今天的伙伴。请使用桌面 Chrome 或 Edge。</p>
+<button id="pair" type="button">连接我已有的灵宠屋</button>
+<p id="pair-status" role="status" aria-live="polite"></p>
+<details><summary>小屋打不开，或使用了其他端口？</summary>
+<p>若浏览器提示无法访问，先打开原来的小屋。旧版小屋（如 v0.2.0）需从<a href="https://github.com/moonlin1213/cove-pet-nest/releases/latest" target="_blank" rel="noopener noreferrer">灵宠屋发布页</a>下载 <b>Cove-Pet-Nest-Update.zip</b>，解压并双击对应系统的启动器，按提示沿用原来的数据目录。更新并启动后，再点上方按钮。</p>
+<label for="room-port">本机小屋端口</label> <input id="room-port" type="text" inputmode="numeric" maxlength="5" value="8767" size="5" autocomplete="off">
+</details>
+<h2>首次安装挂件</h2>
+<p>用 USB <strong>数据线</strong>把 FoloToy AI Passport 接到电脑，点亮屏幕。此固件适用于 ESP32-C3、8 MB 的 AI Passport。</p>
+<p>点「连接挂件」，在弹窗里选择 <b>USB JTAG/serial debug unit</b> 或 Espressif 设备。只插这一个挂件会更容易辨认。</p>
 <p>安装会替换挂件现有内容。页面先把整机备份保存到你的电脑，里面可能有原来的配网信息，请自己保管。安装时保留默认文件名。</p>
 <div class="actions"><button id="connect">连接挂件</button><button id="install" hidden>保存备份并安装</button><button id="restore" hidden>恢复原机备份</button><button id="disconnect" hidden>断开</button></div>
 <p id="status" role="status" aria-live="polite"></p><progress id="progress" max="1" hidden></progress>

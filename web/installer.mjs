@@ -1,17 +1,19 @@
 import {ESPLoader, Transport} from 'esptool-js';
 import SparkMD5 from 'spark-md5';
 import {SIZE, install, restore, backupName} from './flow.mjs';
+import {openLocalRoom} from './pairing.mjs';
 
 const el = id => document.getElementById(id);
 let loader, transport, original, board, suggestedName, busy = false;
+const canInstall = Boolean(navigator.serial && window.showSaveFilePicker && window.isSecureContext);
 function progress(text, value) {
   el('status').textContent = text;
   el('progress').hidden = value === undefined;
   if (value !== undefined) el('progress').value = value;
 }
-async function closePort() {
-  if (loader?.IS_STUB) try { await loader.after('hard_reset'); } catch {}
-  if (transport) try { await transport.disconnect(); } catch {}
+async function closePort(requireRelease = false) {
+  if (loader?.IS_STUB) try { await loader.after('hard_reset'); } catch (error) { if (requireRelease) throw error; }
+  if (transport) try { await transport.disconnect(); } catch (error) { if (requireRelease) throw error; }
   loader = transport = original = board = suggestedName = null;
 }
 function controls() {
@@ -20,6 +22,7 @@ function controls() {
   el('restore').hidden = !board;
   el('disconnect').hidden = !board;
   for (const button of document.querySelectorAll('button')) button.disabled = busy;
+  el('connect').disabled = busy || !canInstall;
 }
 async function action(fn) {
   if (busy) return;
@@ -72,6 +75,27 @@ async function write(bytes) {
     eraseAll:false,compress:true,calculateMD5Hash:s=>SparkMD5.hashBinary(s),
     reportProgress:(index,n,total)=>progress('正在写入并校验，请保持连接…',(index+n/total)/files.length)});
 }
+el('pair').onclick = async () => {
+  if (busy) return;
+  busy = true;
+  controls();
+  try {
+    await openLocalRoom(el('room-port').value, {
+      openTab: () => window.open('about:blank', '_blank'),
+      release: () => closePort(true),
+      navigate(url) {
+        busy = false;
+        window.location.assign(url);
+      }
+    });
+    el('pair-status').textContent = '已打开本机配对页。如果提示无法访问，请先启动电脑上的灵宠屋；如果显示“找不到页面”或 404，请先更新灵宠屋。';
+  } catch (error) {
+    el('pair-status').textContent = error.message + ' 请检查小屋端口或重新插拔挂件后再试。';
+  } finally {
+    busy = false;
+    controls();
+  }
+};
 el('connect').onclick=()=>action(connect);
 el('disconnect').onclick=()=>action(async()=>{await closePort();progress('已断开。');});
 el('install').onclick=()=>action(async()=>{
@@ -95,7 +119,7 @@ el('restore').onclick=()=>action(async()=>{
   await closePort();progress('原机备份已恢复，校验完成。');
 });
 window.addEventListener('beforeunload',event=>{if(busy||board){event.preventDefault();event.returnValue='';}});
-if (!navigator.serial || !window.showSaveFilePicker || !window.isSecureContext) {
+if (!canInstall) {
   el('connect').disabled=true;
   progress('请在电脑上用 Chrome 或 Edge 打开此页，并允许选择 USB 设备和保存备份。');
 }

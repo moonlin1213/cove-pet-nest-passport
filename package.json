@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "esbuild web/installer.mjs --bundle --minify --format=esm --legal-comments=eof --outfile=docs/install/installer.js",
-    "test": "node --test web/flow.test.mjs"
+    "test": "node --test web/flow.test.mjs web/pairing.test.mjs"
   },
   "dependencies": {
     "esptool-js": "0.5.7",
