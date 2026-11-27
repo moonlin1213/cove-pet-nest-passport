@@ -8,6 +8,7 @@ from device.pet_mood import compact
 
 # (title, control hint) always fit the 240-pixel footer.
 CARDS = {
+ **{"sleep"+str(seconds):("息屏 · "+name,"OK 更改   ·   ▲▼ 选择") for seconds,name in [(30,"30 秒"),(60,"1 分钟"),(300,"5 分钟"),(0,"常亮")]},
  "summon":("召唤","OK 叫它回家   ·   ▲▼ 选择"),
  "home_again":("它自己回来啦","OK 看看它   ·   ▲▼ 选择"),
  "listen":("看看它的小心思","上下选择   ·   OK 听听"),
@@ -24,6 +25,8 @@ CARDS = {
  "quiet_now":("它安静地靠近了","OK 轻轻回应   ·   ▲ 返回"),
 }
 LINES = {
+ "queued":"已记下，回到小窝后同步",
+ "storage_full":"空间不足，先回小窝同步",
  "away_hint":"小窝空着，它溜出去玩啦",
  "call_first":"先叫它回来，再一起玩吧",
  "m_star":"东张西望，想找点新鲜事",
@@ -40,6 +43,15 @@ LINES = {
 
 def build(dest, snapshot):
     dest.mkdir(parents=True,exist_ok=True)
+    strip=Image.new("RGB",(240,20),CREAM)
+    label(strip,(12,10),"成长",13,anchor="lm")
+    (dest/"growth-label.rgb").write_bytes(rgb565(strip))
+    digits=bytearray()
+    for char in "0123456789.":
+        tile=Image.new("RGB",(10,20),CREAM)
+        label(tile,(0,10),char,13,anchor="lm")
+        digits.extend(rgb565(tile))
+    (dest/"growth-digits.rgb").write_bytes(digits)
     for key,(title,hint) in CARDS.items():
         im=Image.new("RGB",(240,48),"#e3ead9")
         label(im,(120,6),title,17,anchor="ma")

@@ -8,7 +8,7 @@ import time
 from machine import ADC, Pin
 from st7789 import ST7789
 from pet_core import accept_receipt, pending, start_action
-from pet_link import post_care, get_profile
+from pet_link import post_care, get_profile, connect_wifi
 from pet_mood import expression
 from pocket_games import Round
 from pet_labels import MESSAGES
@@ -70,9 +70,21 @@ if config:
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     try:
-        wlan.connect(config["ssid"], config["password"])
+        connect_wifi(wlan,config)
     except OSError:
         pass
+
+screen_power=session=None
+if roster and pending(BASE+"pocket.json"):
+    from pocket_screen import PocketScreen, OPTIONS
+    from machine import PWM
+    backlight=PWM(Pin(21),freq=5000,duty_u16=65535)
+    try:timeout=preferences.get_i32("screenidle")
+    except OSError:timeout=60
+    screen_power=PocketScreen(timeout,last_input,lambda on:backlight.duty_u16(65535 if on else 0))
+    if roster.get("starter") or (config and config.get("token")):
+        from pocket_session import PocketSession
+        session=PocketSession(None if picking else pet["id"],last_input,config,bool(roster.get("starter")))
 
 poll = select.poll()
 poll.register(sys.stdin, select.POLLIN)
@@ -107,6 +119,15 @@ def notice(key):
     draw(key,240,32)
 
 
+def growth_line(value):
+    draw("growth-label",219,20)
+    text=("%.2f"%value).rstrip("0").rstrip(".")
+    with open(BASE+"growth-digits.rgb","rb") as digits:
+        for i,char in enumerate(text[:16]):
+            digits.seek("0123456789.".index(char)*400)
+            display.blit(digits.read(400),48+10*i,219,10,20)
+
+
 def picture(number):
     global pose, last_pose
     pose = number
@@ -120,6 +141,12 @@ def picture(number):
         draw(file,41,139,58,124)
     else:
         draw(file,0,240)
+        if session:
+            value=member.get("growth")
+            if session.starter:
+                state=pending("/starter-care.json") or {}
+                value=state.get("growth",{}).get(member["id"],0)
+            if value is not None:growth_line(value)
 
 
 def show_standby():
@@ -225,6 +252,8 @@ def start_round(ignore_food=False):
 
 
 def footer():
+    if screen_power and selection==len(ACTIONS)+int(has_games)+int(bool(roster)):
+        return "sleep"+str(screen_power.seconds)
     if selection == -1:
         return "summon" if pet["id"] in trips else "home_again"
     if roster and selection == len(ACTIONS)+int(has_games):
@@ -262,7 +291,7 @@ def command(key, long_press=False):
         if key == 3:
             open_menu()
         return
-    if long_press and key == 3 and pet["id"] in portraits:
+    if long_press and key == 3 and pet["id"] in portraits and not (session and session.book.pet is None):
         show_standby()
         return
     existing = pending(PENDING)
@@ -271,6 +300,7 @@ def command(key, long_press=False):
             chosen = pets[index]
             preferences.set_blob("companion", chosen["id"].encode())
             preferences.commit()
+            if session:session.book.choose(chosen["id"])
             pet = chosen
             last_fetch = None
             picking = False
@@ -306,8 +336,15 @@ def command(key, long_press=False):
             notice("retry")
             return
         first = -1 if pet["id"] in trips else 0
-        count = len(ACTIONS) + int(bool(roster)) + int(has_games)
+        count = len(ACTIONS) + int(bool(roster)) + int(has_games) + int(bool(screen_power))
         selection = first + (selection-first + (-1 if key == 1 else 1)) % (count-first)
+        draw(footer(),272,48)
+        return
+    if screen_power and footer().startswith("sleep"):
+        value=OPTIONS[(OPTIONS.index(screen_power.seconds)+1)%len(OPTIONS)]
+        preferences.set_i32("screenidle",value)
+        preferences.commit()
+        screen_power.seconds=value
         draw(footer(),272,48)
         return
     if selection == -1:
@@ -334,6 +371,14 @@ def command(key, long_press=False):
 
 def send_action(action, existing):
     global serial_wait, round_result
+    if session and not existing:
+        try:session.book.care(action,round_result)
+        except OSError:
+            notice("storage_full")
+            return
+        round_result=None
+        notice("sending" if session.starter else "queued")
+        return
     if roster and roster.get("starter") and pet["id"].startswith("starter-"):
         from demo_care import demo_reply
         body = start_action(PENDING, pet["id"], action)
@@ -386,7 +431,7 @@ def serial_input():
                 notice("retry")
 
 
-if pet["id"] in portraits:
+if pet["id"] in portraits and not (session and picking):
     show_standby()
 else:
     picture(0)
@@ -399,8 +444,28 @@ changed = time.ticks_ms()
 while True:
     serial_input()
     now = time.ticks_ms()
+    if session:
+        try:
+            settled=session.tick(now,bool(wlan and wlan.isconnected()))
+            if settled:
+                row,receipt=settled
+                if "growth" in receipt:
+                    for member in pets:
+                        if member["id"]==row["pet"]:
+                            member["growth"]=receipt["growth"]
+                            if not standby and not picking and not screen_power.dark and member is pet:
+                                growth_line(receipt["growth"])
+                            break
+                if row["pet"]==pet["id"] and row["op"]!="wear":
+                    status=receipt["status"]
+                    recent_care[pet["id"]]=(status,now)
+                    last_fetch=None
+                    if not standby and not picking and not round_now and not screen_power.dark:
+                        if status in ("fed","played","comforted"):picture(3 if status=="fed" else 5)
+                        notice("r_"+row["outcome"] if row.get("outcome") and status in ("played","comforted") else status if status in MESSAGES else "checked")
+        except (OSError,ValueError,MemoryError):pass
     if trips:
-        expire_trip(now)
+        expire_trip(now,redraw=not (screen_power and screen_power.dark))
     if serial_wait is not None and time.ticks_diff(now, serial_wait) > 8500:
         serial_wait = None
         notice("retry")
@@ -414,7 +479,7 @@ while True:
     if config and wlan and not wlan.isconnected() and time.ticks_diff(now,last_reconnect)>30000:
         last_reconnect = now
         try:
-            wlan.connect(config["ssid"],config["password"])
+            connect_wifi(wlan,config)
         except OSError:
             pass
     if has_games and wlan and wlan.isconnected() and not picking and not round_now and not serial_wait and (
@@ -424,6 +489,15 @@ while True:
             notice("idle")
     mv = adc.read_uv() // 1000
     key = 1 if mv < 150 else 2 if mv < 447 else 3 if mv < 1900 else 0
+    if screen_power:
+        was_dark=screen_power.dark
+        consumed=screen_power.update(now,key,bool(round_now or serial_wait))
+        if was_dark and not screen_power.dark and standby:show_standby()
+        if consumed or screen_power.dark:
+            stable=candidate=0
+            if consumed:last_input=now
+            time.sleep_ms(25)
+            continue
     if key != candidate:
         candidate, changed = key, now
     elif key != stable and time.ticks_diff(now, changed) >= 55:
@@ -438,7 +512,7 @@ while True:
         tick_standby(now)
         time.sleep_ms(20)
         continue
-    if (pet["id"] in portraits and not stable and not round_now and serial_wait is None
+    if (pet["id"] in portraits and not (session and session.book.pet is None) and not stable and not round_now and serial_wait is None
             and time.ticks_diff(now,last_input)>=18000):
         show_standby()
         continue

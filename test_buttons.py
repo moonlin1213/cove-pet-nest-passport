@@ -44,7 +44,10 @@ class ButtonsTest(unittest.TestCase):
         for summon in (True, False):
             self.trace(False, portrait=True, outing=True, summon=summon)
 
-    def trace(self, multi, again=False, saved=None, portrait=False, outing=False, summon=True):
+    def test_starter_entry_saves_offline_care_and_awards_selected_pet(self):
+        self.trace(True,starter=True)
+
+    def trace(self, multi, again=False, saved=None, portrait=False, outing=False, summon=True, starter=False):
         root = Path(__file__).parent.resolve()
         with tempfile.TemporaryDirectory() as tmp:
             fs = Path(tmp)
@@ -55,9 +58,15 @@ class ButtonsTest(unittest.TestCase):
             if multi:
                 (nest/"roster.json").write_text(json.dumps({"pets":[
                     {"id":pet_id, "dir":"p%d/" % i, "name":pet_id} for i,pet_id in enumerate(ids)]}))
+            if starter:
+                roster=json.loads((nest/"roster.json").read_text())
+                roster["starter"]=True
+                (nest/"roster.json").write_text(json.dumps(roster))
+                (nest/"pocket.json").write_text('{"version":1}')
             stored = {} if saved is None else saved.copy()
             class NVS:
                 def __init__(self, ns): pass
+                def get_i32(self,key):return 60
                 def get_blob(self, key, buf):
                     if key not in stored:
                         raise OSError(-4354)
@@ -128,7 +137,7 @@ class ButtonsTest(unittest.TestCase):
                         if 350 <= tick[0] < 470 or 1000 <= tick[0] < 1120: return 900000
                         return 3100000
                     return 900000 if (80 <= tick[0] < 210 or 520 <= tick[0] < 670) else 3100000
-            machine = types.SimpleNamespace(ADC=ADC,Pin=lambda n:n)
+            machine = types.SimpleNamespace(ADC=ADC,Pin=lambda n:n,PWM=lambda *a,**k:types.SimpleNamespace(duty_u16=lambda n:None))
             poll = types.SimpleNamespace(register=lambda *a:None,poll=lambda wait:bool(rx))
             fake_time=types.SimpleNamespace(ticks_ms=lambda:tick[0],ticks_diff=lambda a,b:a-b,sleep_ms=advance)
             import os
@@ -147,6 +156,12 @@ class ButtonsTest(unittest.TestCase):
                     s.enter_context(patch.object(os,"urandom",lambda n:(bytes([255,0])*n)[:n]))
                 with self.assertRaises(EndOfTrace):
                     runpy.run_path(str(root/"device"/"main.py"),run_name="__main__")
+            if starter:
+                state=json.loads((fs/"starter-care.json").read_text())
+                self.assertEqual(state["growth"],{"second":2})
+                self.assertEqual(state["record"]["status"],"played")
+                self.assertEqual(tx,[])
+                return
             if outing:
                 self.assertIn("summon",[name for _,name in ui_files])
                 self.assertEqual(tx,[])

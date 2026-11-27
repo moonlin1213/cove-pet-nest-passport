@@ -78,13 +78,13 @@ el('install').onclick=()=>action(async()=>{
   const handle=await window.showSaveFilePicker({suggestedName,types:[{description:'原机备份',accept:{'application/octet-stream':['.bin']}}]});
   if (handle.name !== suggestedName) throw Error('请保留备份的默认文件名，以便日后恢复。');
   progress('正在下载并核对公开安装包…');
-  const [r,m]=await Promise.all([fetch('./passport.bin'),fetch('./image.json',{cache:'no-cache'})]);
+  const [r,m]=await Promise.all([fetch('./passport.bin?v=0.2.0'),fetch('./image.json',{cache:'no-cache'})]);
   if (!r.ok || !m.ok) throw Error('安装包暂时无法下载。');
   await install({read:async()=>original,save:async b=>{
     const stream=await handle.createWritable(); await stream.write(b); await stream.close();
     return new Uint8Array(await (await handle.getFile()).arrayBuffer());
   },write},new Uint8Array(await r.arrayBuffer()),await m.json());
-  await closePort();progress('写入和校验完成。等屏幕出现小猫，按 OK 打开菜单。');
+  await closePort();progress('写入和校验完成。在挂件上用 ▲ / ▼ 选伙伴，按 OK 确认。');
 });
 el('restore').onclick=()=>action(async()=>{
   const [handle]=await window.showOpenFilePicker({multiple:false,types:[{description:'原机备份',accept:{'application/octet-stream':['.bin']}}]});

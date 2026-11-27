@@ -12,6 +12,9 @@ import re
 import secrets
 import subprocess
 import sys
+import sqlite3
+import time
+from pocket_growth import settle
 import tempfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.error import HTTPError
@@ -91,7 +94,13 @@ def serve(room, config):
                     self.headers.get("Authorization",""),"Bearer "+config["token"]):
                 self.respond(403,{});return
             try:
-                if self.command=="GET" and self.path=="/api/pet-nest/ecosystem":
+                if self.command=="GET" and self.path=="/clock":
+                    self.respond(200,int(time.time()))
+                elif self.command=="POST" and self.path=="/companion":
+                    size=int(self.headers.get("Content-Length",0))
+                    if not 0<size<=512:raise ValueError("invalid record size")
+                    self.respond(200,settle(room,config["pets"],json.loads(self.rfile.read(size))))
+                elif self.command=="GET" and self.path=="/api/pet-nest/ecosystem":
                     self.respond(200,{"pets":[pocket_profile(p) for p in room.pets() if p["id"] in config["pets"]]})
                 elif self.command=="POST" and self.path=="/api/pet-nest/care":
                     size=int(self.headers.get("Content-Length",0))
@@ -103,7 +112,7 @@ def serve(room, config):
                 else:self.respond(404,{})
             except (TypeError,ValueError,KeyError):self.respond(400,{})
             except HTTPError as e:self.respond(e.code if e.code in (400,404,422) else 503,{})
-            except OSError:self.respond(503,{})
+            except (OSError,sqlite3.Error):self.respond(503,{})
         do_GET=do_POST=handle_route
     with HTTPServer((config["host"],config["port"]),Handler) as server:
         print("挂件已可连接。保持此窗口打开；按 Ctrl+C 可退出。",flush=True)
@@ -132,7 +141,7 @@ def personal_pack(dest,slot,chosen,room,wifi):
         meta["file"]=group+"/"+meta["file"]
         index[p["id"]]=meta
         profiles[p["id"]]=compact(pocket_profile(p))
-        roster.append(dict(id=p["id"],name=p["name"],dir=group+"/"+stem+"/"))
+        roster.append(dict(id=p["id"],name=p["name"],growth=p.get("growth",0),dir=group+"/"+stem+"/"))
     for name,obj in (("roster",{"pets":roster}),("portrait",index),("moods",profiles),("wifi",wifi)):
         (nest/(name+".json")).write_text(json.dumps(obj))
     return [*sorted(portrait.glob("*.bin")),*sorted(nest.glob("p*/pose*.rgb")),*sorted(nest.glob("*.json"))]

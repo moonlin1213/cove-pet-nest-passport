@@ -24,7 +24,8 @@ def pack_frame(cell):
         rgb=((r>>3)<<11)|((g>>2)<<5)|(b>>3)
         lut.extend(max(1,rgb).to_bytes(2,"big"))
     pixels = bytes((n+1 if a>8 else 0) for n,a in zip(indexed.tobytes(),alpha.tobytes()))
-    return bytes([colors+1])+lut+zlib.compress(pixels,9)
+    compressor=zlib.compressobj(9,wbits=10)
+    return bytes([colors+1])+lut+compressor.compress(pixels)+compressor.flush()
 
 
 def build_pet(atlas, room, dest, stem, egg):

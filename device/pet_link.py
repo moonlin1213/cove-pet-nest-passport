@@ -11,6 +11,16 @@ def auth_header(token):
     return "Authorization: Bearer " + token + "\r\n"
 
 
+def connect_wifi(wlan, config):
+    # The ESP station can keep its previous DHCP lease when connect() is
+    # called while associated, even after config('essid') shows the new name.
+    import time
+    connected=wlan.isconnected()
+    wlan.disconnect()
+    if connected:time.sleep_ms(250)
+    wlan.connect(config["ssid"], config["password"])
+
+
 def post_care(host, port, body, token=None):
     addr = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)[0][-1]
     sock = socket.socket()
