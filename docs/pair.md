@@ -3,7 +3,7 @@
 ## 第一次连接
 
 1. 在电脑上启动自己原来的公开版灵宠屋。旧版用户（如 v0.2.0）先从灵宠屋发布页下载 **Cove-Pet-Nest-Update.zip**，解压，双击适合自己系统的启动器，按提示沿用原来的小屋和数据目录。[灵宠屋发布页](https://github.com/moonlin1213/cove-pet-nest/releases/latest)
-2. 把 FoloToy AI Passport 点亮，用 USB 数据线连接电脑。在桌面 Chrome 或 Edge 打开安装页，点 **连接我已有的灵宠屋**。如果挂件还是原厂系统，先在安装页点 **连接挂件**，保存原机备份、完成固件安装后再配对。[中文安装页](https://moonlin1213.github.io/cove-pet-nest-passport/install/)
+2. 把 FoloToy AI Passport 点亮，用 USB 数据线连接电脑。在桌面 Chrome 或 Edge 打开安装页，点 **连接我已有的灵宠屋**。如果挂件还是原厂系统，先在安装页点 **首次安装**，保存原机备份、完成固件安装后再配对。[中文安装页](https://moonlin1213.github.io/cove-pet-nest-passport/install/)
 3. 进入本机配对页后，如有提示，使用原小屋的本机访问码登录。选择想带的宠物，按页面提示授权 USB 设备、填写家庭 2.4 GHz Wi-Fi 并写入。宠物名单、图集和 Wi-Fi 信息在自己的电脑与挂件之间处理。
 4. 等待页面确认校验完成后再拔线。保持电脑上的小屋运行，挂件在同一家庭 Wi-Fi 下喂食或陪玩一次，就能在原小屋核对照顾记录。配对页面可以关闭。
 

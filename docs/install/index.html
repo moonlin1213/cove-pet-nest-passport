@@ -5,19 +5,20 @@
 <title>安装 · Cove灵宠屋 · FoloToy 版</title><link rel="stylesheet" href="./style.css">
 <main><img src="./starter.png" width="240" height="320" alt="示例小猫团团在小窝里的待机画面">
 <section><h1>Cove灵宠屋 · FoloToy 版</h1>
-<h2>带上自己养的灵宠</h2>
-<p>启动这台电脑上的灵宠屋，插上挂件，在本机小屋里挑选今天的伙伴。请使用桌面 Chrome 或 Edge。</p>
-<button id="pair" type="button">连接我已有的灵宠屋</button>
+<h2>挂件已经装好灵宠屋</h2>
+<p>如果挂件已装 <strong>0.3.1</strong>，只需把<strong>电脑端灵宠屋</strong>更新到 0.3.2 或更高版本；已经更新过的直接启动小屋即可。挂件无需重刷。</p>
+<p>解压更新包，双击对应系统的 Update 启动器，选回原来的小屋和数据文件夹。小屋启动后，用 USB 数据线接上挂件，在电脑 Chrome 或 Edge 点下方按钮，勾选想带的宠物。</p>
+<div class="pair-actions"><button id="pair" type="button">连接我已有的灵宠屋</button><a href="https://github.com/moonlin1213/cove-pet-nest/releases/latest/download/Cove-Pet-Nest-Update.zip">下载电脑端图形更新包</a></div>
 <p id="pair-status" role="status" aria-live="polite"></p>
 <details><summary>小屋打不开，或使用了其他端口？</summary>
-<p>若浏览器提示无法访问，先打开原来的小屋。旧版小屋（如 v0.2.0）需从<a href="https://github.com/moonlin1213/cove-pet-nest/releases/latest" target="_blank" rel="noopener noreferrer">灵宠屋发布页</a>下载 <b>Cove-Pet-Nest-Update.zip</b>，解压并双击对应系统的启动器，按提示沿用原来的数据目录。更新并启动后，再点上方按钮。</p>
+<p>若浏览器提示无法访问，请确认电脑端小屋已启动。版本与更新说明见<a href="https://github.com/moonlin1213/cove-pet-nest/releases/latest" target="_blank" rel="noopener noreferrer">灵宠屋发布页</a>。如果小屋使用了其他端口，请在这里填写。</p>
 <label for="room-port">本机小屋端口</label> <input id="room-port" type="text" inputmode="numeric" maxlength="5" value="8767" size="5" autocomplete="off">
 </details>
-<h2>首次安装挂件</h2>
+<h2>第一次给挂件安装灵宠屋</h2>
 <p>用 USB <strong>数据线</strong>把 FoloToy AI Passport 接到电脑，点亮屏幕。此固件适用于 ESP32-C3、8 MB 的 AI Passport。</p>
-<p>点「连接挂件」，在弹窗里选择 <b>USB JTAG/serial debug unit</b> 或 Espressif 设备。只插这一个挂件会更容易辨认。</p>
+<p>用电脑 Chrome 或 Edge 点「首次安装」，在弹窗里选择 <b>USB JTAG/serial debug unit</b> 或 Espressif 设备。只插这一个挂件会更容易辨认。</p>
 <p>安装会替换挂件现有内容。页面先把整机备份保存到你的电脑，里面可能有原来的配网信息，请自己保管。安装时保留默认文件名。</p>
-<div class="actions"><button id="connect">连接挂件</button><button id="install" hidden>保存备份并安装</button><button id="restore" hidden>恢复原机备份</button><button id="disconnect" hidden>断开</button></div>
+<div class="actions"><button id="connect">首次安装</button><button id="install" hidden>保存备份并安装</button><button id="restore" hidden>恢复原机备份</button><button id="disconnect" hidden>断开</button></div>
 <p id="status" role="status" aria-live="polite"></p><progress id="progress" max="1" hidden></progress>
 <details><summary>没有看到挂件或连接失败？</summary><p>先试一根能传文件的数据线，直接接电脑，关闭其他串口工具和占用挂件的网页。拔插后再点连接；端口列表里选好设备，再点弹窗里的连接按钮。</p></details>
 <p><a href="https://github.com/moonlin1213/cove-pet-nest-passport">按键说明与项目源码</a></p>
